@@ -165,11 +165,9 @@ public class Hamming {
         int cantRed = getBitsRedDeHamming(arregloBits);
         boolean[] arrInfo = new boolean[arregloBits.length - cantRed - 1];
         boolean[] aux;
-        if(arreglar){
-            aux = arreglar(arregloBits);
-        }else{
-            aux = arregloBits.clone();
-        }
+        
+        aux = (arreglar) ? arreglar(arregloBits) : arregloBits.clone();
+        
         int j = -1;
         for (int i = 1; i < aux.length + 1; i++) {
             if ((i & i - 1) != 0) {//Esto devuelve si no es potencia de 2
@@ -188,13 +186,8 @@ public class Hamming {
      */
     public static String toString(boolean[] ar) {
         String aux = "";
-        for (int i = 0; i < ar.length; i++) {
-            if (ar[i]) {
-                aux += '1';
-            } else {
-                aux += '0';
-            }
-        }
+        for (int i = 0; i < ar.length; i++)
+            aux += (ar[i]) ? '1' : '0';
         return aux;
     }
     
