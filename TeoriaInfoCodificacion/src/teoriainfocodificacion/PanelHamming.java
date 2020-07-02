@@ -3,9 +3,12 @@ package teoriainfocodificacion;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.util.Random;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import javax.swing.JOptionPane;
 
 /**
@@ -16,10 +19,8 @@ public class PanelHamming extends javax.swing.JFrame {
     private static String archivoElegido;
     private String archivoIzq;
     private String archivoDer;
+    private boolean[] aGuardarHamming;
     private int totalBitsAleer,bloqueHamming; // inicializo en Proteger archivo
-    
-    private boolean [] aGuardar;
-    
 
     public PanelHamming() {
         initComponents();
@@ -219,8 +220,6 @@ public class PanelHamming extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
-        // TODO add your handling code here:
-
         bloqueHamming=0;
         String ext="";
         switch(jComboHamming.getSelectedIndex()){//Seleccionado en Panel
@@ -270,7 +269,6 @@ public class PanelHamming extends javax.swing.JFrame {
         if(ext.contains("HE")){//Si el archivo esta dañado
             ext = nombreArchivo.substring(nombreArchivo.length()-1);//Tomo el ultimo
             if(0==JOptionPane.showConfirmDialog(null, "¿Desea Arreglar el archivo?","",JOptionPane.YES_NO_OPTION)){
-                System.out.println("corregir");
                 //Aca tengo que armar la extencion DHx
                 ext =".DH"+ext;
                 decodificarArchivo(nombreArchivo, ext,true);
@@ -359,7 +357,6 @@ public class PanelHamming extends javax.swing.JFrame {
     public void decodificarArchivo(String nameArchivo,String ext,boolean arreglar){ 
         //El totalBitsaleer y el bloqueHamming los tenemos globales e inicializados en la funcion de arriba "protegerArchivo()"
         //Te paso la extencion para ponerle al archivo que vas a crear
-        
         //↓Ver javadoc↓ ahi explico los parametros
         readFileToText(nameArchivo,totalBitsAleer, bloqueHamming,ext,arreglar);
     }
@@ -370,59 +367,44 @@ public class PanelHamming extends javax.swing.JFrame {
     }
     
     public String arrToString(byte[] b){
-        int i=0;
         String strArray="";
-        for(i=0; i< b.length;i++){
+        for(int i=0; i< b.length;i++){
             strArray+=String.format("%8s", Integer.toBinaryString(b[i])).replace(' ', '0');
         }
         return strArray;
     }
-    
-    public String arrBytesToHammingString2(byte[] bytesLinea, int totalBI){
+    /**
+     * Recibe el archivo representado en un arreglo de bytes y el tamaño de bits informacion por bloque
+     * Retorna un string de 0s y 1s que representan el arreglo hamminizado
+     * Le asigna el valor hamminizado en booleano del arreglo a la variable de instancia aGuardarHamming
+     * @param bytesArchivo
+     * @param cantBitsInfo
+     * @return 
+     */
+    public String arrBytesToHammingString(byte[] bytesArchivo, int cantBitsInfo){
         String lineaDeBits="";
-        int hasta=totalBI-1; //EJ: 26
+        int hasta = cantBitsInfo-1; //EJ: 26
         int desde = 0;
         boolean primera = true;
-        while(hasta<bytesLinea.length){
-            boolean bitsInfo[] = getIntervaloBits(bytesLinea, desde, hasta);
-            bitsInfo = Hamming.getHamming(bitsInfo);
+        while(hasta/8<bytesArchivo.length){
+            boolean bitsInfo[] = Hamming.getIntervaloBits(bytesArchivo, desde, hasta);
+            boolean bitsHamming[] = Hamming.getHamming(bitsInfo);
             if(primera){
-                aGuardar = bitsInfo;
+                aGuardarHamming = bitsHamming;
+                primera = false;
             }
             else{
-                unirArreglos(bitsInfo); //Appendeo el arreglo hamminizado al arreglo que voy a guardar en archivo
+                aGuardarHamming = Hamming.concat(aGuardarHamming, bitsHamming);//Concateno el arreglo hamminizado al arreglo que voy a guardar en archivo
             }
-            hasta += totalBI-1;
-            desde += hasta+1;
-            
-            lineaDeBits += Hamming.toString(bitsInfo)+"\n";  //le meto el bloque hamminizado
+            desde = hasta+1;
+            hasta += cantBitsInfo;
+            lineaDeBits += Hamming.toString(bitsHamming)+" ";  //le meto el bloque hamminizado
         }
-        if(desde < bytesLinea.length){
-            boolean bitsInfo[] = getIntervaloBits(bytesLinea, desde, hasta);
-            bitsInfo = Hamming.getHamming(bitsInfo);
-            unirArreglos(bitsInfo);
-            lineaDeBits += Hamming.toString(bitsInfo);
-        }
-        return lineaDeBits;
-    }
-    
-    public String arrBytesToHammingString(byte[] bytesLinea, int totalBI){
-        String lineaDeBits=""; 
-        String strBits = arrToString(bytesLinea); //String de bits
-        int hasta=totalBI; //EJ: 26
-        while(hasta<strBits.length()){
-            String bitsInfo = strBits.substring(0, hasta);
-            lineaDeBits += Hamming.toString(Hamming.getHamming(bitsInfo));  //le meto el bloque hamminizado
-            strBits = strBits.substring(hasta); // le como "hasta bits" a la linea
-        }
-        if(strBits.length()>0){
-            //completo los ceros y lo hamminizo 
-            int cantCeros= totalBI - strBits.length();
-            int j=0;
-            for(j=0; j<cantCeros;j++){
-                strBits+="0";
-            }
-            lineaDeBits += Hamming.toString(Hamming.getHamming(strBits));
+        if(desde/8 < bytesArchivo.length){
+            boolean bitsInfo[] = Hamming.getIntervaloBits(bytesArchivo, desde, hasta);
+            boolean bitsHamming[] = Hamming.getHamming(bitsInfo);
+            aGuardarHamming = Hamming.concat(aGuardarHamming, bitsHamming);
+            lineaDeBits += Hamming.toString(bitsHamming);
         }
         return lineaDeBits;
     }
@@ -470,7 +452,7 @@ public class PanelHamming extends javax.swing.JFrame {
                     aEscribirBytes = linea.substring(0, hasta);
                     linea = linea.substring(hasta);
                     arr= Hamming.toArray(aEscribirBytes);
-                    posRota = this.romper((float) 0.5, arr);
+                    posRota = Hamming.romper((float) 0.5, arr);
                     auxRoto = Hamming.toString(arr);
                     
                     if(posRota>=0){
@@ -516,77 +498,46 @@ public class PanelHamming extends javax.swing.JFrame {
      * @param cantBits 
      */
     public void readFileToBynari(int cantBits,String extArchivo){
-       boolean primero=true;
-        File archivo = null;
-        FileReader fr = null;
-        BufferedReader br = null;
-        int i = 0; // indice que va a tomar la cantidad de bits de info necesaria por iteracion
+        String aImprimir;
         try {
-            archivo = new File("./"+archivoElegido); //.txt
-            fr = new FileReader(archivo); 
-            br = new BufferedReader(fr);
-            String sinExtencion=archivoElegido.substring(0, archivoElegido.length()-4);//Saco la extencion
+            String contenido = Files.readString(Paths.get(archivoElegido));
+            System.out.println("Ya lei a string");
+            String sinExtencion = archivoElegido.substring(0, archivoElegido.length()-4);//Saco la extencion
             File archivo2 = new File("./"+sinExtencion+extArchivo);//.HAx
-            BufferedWriter bw;
-            if(archivo2.exists()){
-                bw = new BufferedWriter(new FileWriter(archivo2));
-            }
-            else{
-                archivo2.createNewFile();
-                bw = new BufferedWriter(new FileWriter(archivo2));
-            }
-            String linea;
-            String textoIzq = "";
-            String textoDer = "";
-            String htmlAux = "";
-            while ((linea = br.readLine()) != null) {//linea por linea
-                htmlAux = linea.replace("<", "&lt;");
-                htmlAux = htmlAux.replace(">", "&gt;");
-                textoIzq += htmlAux +"<br>";
-                String aEscribir= arrBytesToHammingString(linea.getBytes(), cantBits);
-                htmlAux = aEscribir.replace("<", "&lt;");
-                htmlAux = htmlAux.replace(">", "&gt;");
-                textoDer += htmlAux + "<br>";
-                if(primero){
-                    primero=false;
-                    bw.write(aEscribir);
-                }else{
-                    bw.write('\n'+aEscribir);
-                } 
-            }
-            bw.close(); 
+            
+            byte[] bytes  = Files.readAllBytes(Paths.get("./"+archivoElegido));
+            System.out.println("Ya lei a bytes");
+            aImprimir = arrBytesToHammingString(bytes, cantBits);
+            System.out.println("Ya hamminifique");
+            OutputStream out = new FileOutputStream(archivo2);
+            
+            out.write(Hamming.toBytes(aGuardarHamming));
+            out.close(); 
             jComboArchivosADecodificar.addItem(archivo2.getPath().substring(2));//Añado archivo a decodificar
-            mostrarArchivos(archivo.getPath(), archivo2.getPath(), textoIzq, textoDer); 
+            mostrarArchivos(Paths.get(archivoElegido).toString(), archivo2.getPath(), contenido, aImprimir); 
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            // En el finally cerramos el fichero, para asegurarnos
-            // que se cierra tanto si todo va bien como si salta 
-            // una excepcion.
-            try {
-                if (null != fr) {
-                    fr.close();
-                }
-            } catch (Exception e2) {
-                e2.printStackTrace();
-            }
         }
     }
     
-    public String decodificar(String textCode,int tamBloque,int cantBitInfo,boolean arreglar){ 
-            String aEscribir="";
+    public String decodificar(byte []codigo,int tamBloque,boolean arreglar){ 
             String auxString="";
+            String aEscribir;
             String retorno="";
-            int hasta = tamBloque;
+            int hasta = tamBloque-1;
+            int desde = 0;
+            byte[] bytesAux = codigo;
             byte byteAux;
-            while(hasta<=textCode.length()){//Si bloque <  final del String
-                aEscribir = textCode.substring(0, hasta);
-                textCode = textCode.substring(hasta);
-                System.out.println(aEscribir.length()+"Este es el tamaño del bloque");
-                boolean[] arr= Hamming.toArray(aEscribir);
-              //  arr = Hamming.getInfo(arr, arr.length-cantBitInfo); Asi estaba antes
+            while(hasta/8<bytesAux.length){//Si bloque <  final del String
+                boolean [] arr = Hamming.getIntervaloBits(bytesAux, desde, hasta);
+                desde = hasta+1;
+                hasta += tamBloque;
                 arr = Hamming.getInfo(arr,arreglar);
-                System.out.println(arr.length+"Este es el tamaño de la info");
+                auxString += Hamming.toString(arr);
+            }
+            if(desde/8<bytesAux.length){
+                boolean [] arr = Hamming.getIntervaloBits(bytesAux, desde, hasta);
+                arr = Hamming.getInfo(arr,arreglar);
                 auxString += Hamming.toString(arr);
             }
             while(8<auxString.length()){
@@ -604,6 +555,7 @@ public class PanelHamming extends javax.swing.JFrame {
             }
         return retorno;
     }
+    
     /**
      * 
      * @param pathAleer nombre del archivo a Decodificar
@@ -612,17 +564,15 @@ public class PanelHamming extends javax.swing.JFrame {
      * @param ext la extencion que le tenes que poner al archivo creado
      */
     public void readFileToText(String pathAleer,int bitsAleer, int bitsBloque,String ext,boolean arreglar){ 
-       boolean primero=true;
-        File archivo = null;
-        FileReader fr = null;
-        BufferedReader br = null;
         try {
-            archivo = new File("./"+pathAleer);                                 // Apertura del fichero
-            fr = new FileReader(archivo);                                       // creacion de BufferedReader para poder hacer el metodo readLine()).
-            br = new BufferedReader(fr);                                        // Lectura del fichero
-            String sinExtencion=pathAleer.substring(0, pathAleer.length()-4);   //Saco la extencion
+            byte[] bytes  = Files.readAllBytes(Paths.get("./"+pathAleer));
+            
+            String textoIzq = Hamming.toString(Hamming.getIntervaloBits(bytes, 0, bytes.length*8-1));
+            String sinExtencion = pathAleer.substring(0, pathAleer.length()-4);   //Saco la extencion
+            
             File archivo2 = new File("./"+sinExtencion+ext);//.H
             BufferedWriter bw;
+            
             if(archivo2.exists()){
                 bw = new BufferedWriter(new FileWriter(archivo2));
             }
@@ -630,41 +580,14 @@ public class PanelHamming extends javax.swing.JFrame {
                 archivo2.createNewFile();
                 bw = new BufferedWriter(new FileWriter(archivo2));
             }
-            String linea;
-            String aEscribirBytes="";
-            String textoIzq="";
-            String textoDer="";
-            String htmlAux="";
-            while ((linea = br.readLine()) != null) {
-                htmlAux = linea.replace("<", "&lt;");
-                htmlAux = htmlAux.replace(">", "&gt;");
-                textoIzq += htmlAux+"<br>";
-                aEscribirBytes=decodificar(linea, bitsBloque, bitsAleer,arreglar);
-                htmlAux = aEscribirBytes.replace("<", "&lt;");
-                htmlAux = htmlAux.replace(">", "&gt;");
-                textoDer += htmlAux + "<br>";
-                if(primero){
-                    primero=false;
-                    bw.write(aEscribirBytes);
-                }else{
-                    bw.write('\n'+aEscribirBytes);
-                }
-            }
+            
+            String textoDer;
+            textoDer=decodificar(bytes, bitsBloque,arreglar);
+            
             bw.close();
-            mostrarArchivos(archivo.getPath(), archivo2.getPath(),textoIzq,textoDer);
+            mostrarArchivos("./"+pathAleer, archivo2.getPath(),textoIzq,textoDer);
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            // En el finally cerramos el fichero, para asegurarnos
-            // que se cierra tanto si todo va bien como si salta 
-            // una excepcion.
-            try {
-                if (null != fr) {
-                    fr.close();
-                }
-            } catch (Exception e2) {
-                e2.printStackTrace();
-            }
         }
     }
     
@@ -697,94 +620,5 @@ public class PanelHamming extends javax.swing.JFrame {
         this.jEditorPaneDer.setText(textoDer);
         this.jEditorPaneIzq.setText(textoIzq);
     }
-    /**
-     * Recibe por parametro una probabilidad la cual es un numero flotante entre 0 y 1
-     * un arreglo hamminizado de booleanos
-     * Retorna un numero entero el cual es la posicion que rompio
-     * Devuelve 0 si no rompio el arreglo
-     * @param prob
-     * @param hamming
-     * @return 
-     */
-    public int romper(float prob, boolean [] hamming){
-        Random random = new Random();
-        int posRomper = random.nextInt(hamming.length-1);
-        if(Math.random()<=prob){
-            hamming[posRomper] = !hamming[posRomper];
-            return posRomper;
-        }
-        return -1;
-    }
-   
-    /**
-     * Recibe un byte y una posicion y devulve el valor booleano del bit de esa posicion
-     * @param b
-     * @param pos
-     * @return 
-     */
-    public static boolean getBitDeByte(byte b, int pos){
-        return (1 & (b >> pos))==1;
-    }
     
-    /**
-     * Recibe un arreglo de bytes por parametro, una posicion de un bit inicial y una posicion de un bit final
-     * Retorna un arreglo de booleanos que contiene los bits desde la posicion inicial hasta la final
-     * @param arr
-     * @param inicio
-     * @param fin
-     * @return 
-     */
-    public boolean [] getIntervaloBits(byte [] arr,int inicio, int fin){
-        int byteI = (int) Math.ceil(inicio/8) - 1; //Byte dnd esta el primer bit
-        int byteF = (int) Math.ceil(fin/8) - 1; //Byte dnd esta el ultimo bit
-        int bitI = inicio - (byteI)*8; //Primer bit del primer byte
-        int bitF = fin - (byteF)*8; //Ultimo bit del ultimo byte
-        int t,aux=0;
-        boolean retorno[] = new boolean[fin-inicio+1];
-        boolean completar=false;
-        
-        if(byteF >= arr.length){ //Si el intervalo se sale del tamaño del arreglo tengo que completar con 0s
-            completar = true;
-            byteF = arr.length-1;
-        }      
-        
-        bucle:
-        for(int i=byteI; i<= byteF; i++){
-            if(i==byteI){ //Si es la primera iteracion debo empezar desde bitI
-                t = bitI;
-            }
-            else{
-                t=0;
-            }
-            while(t<8){
-                retorno[aux]=getBitDeByte(arr[i],t); //Esto puede que sea al revez no me acuerdo
-                if(byteI==byteF && t==bitF && !completar){ //Si estoy en el ultimo byte y en el ultimo bit y ademas no hay que completar nada rompo el bucle
-                    break bucle;
-                }
-                aux++;//indice del arreglo de booleanos
-                t++; //indice del byte actual
-            }
-        }
-        if(completar){
-            while(aux<retorno.length){
-                retorno[aux]=false; //completo con 0s
-                aux++;
-            }
-        }
-        return retorno;
-    }
-    
-    /**
-     * Une el arreglo pasado por parametro al arreglo de booleanos que se va a guardar en archivo
-     * @param aUnir 
-     */
-    public void unirArreglos(boolean [] aUnir){
-        int tam = aUnir.length + aGuardar.length;
-        boolean nuevo[] = new boolean[tam];
-        for(int i=0; i<aGuardar.length; i++)
-            nuevo[i]=aGuardar[i];
-        for(int i = aGuardar.length; i<tam; i++)
-            nuevo[i] = aUnir[i-aGuardar.length];
-        aGuardar=nuevo;
-    }
 }
