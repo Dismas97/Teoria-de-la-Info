@@ -156,6 +156,7 @@ public class Nodo implements Comparable<Nodo>{
         int libre = 8; //Los bits Disponibles del byte
         for (int i = 0; i < texto.length(); i++) {
             int bitsCodigo = diccionario.get(texto.charAt(i)).length();
+            
             if (libre >= bitsCodigo) { //inicialmente tengo 8 bits libres
                 libre = libre - bitsCodigo; // 8 - longitud del codigoHuffman
                 biteDe8 += diccionario.get(texto.charAt(i));  //append del codigo al byte
@@ -201,11 +202,15 @@ public class Nodo implements Comparable<Nodo>{
         File tablaHuffman = new File("./tablaHuff.txt");
         OutputStream out = new FileOutputStream(tablaHuffman);
         byte[] buf = tabla.getBytes();
+        
         out.write(buf,0,buf.length); 
         out.close();//A la tabla de la escribo como está. 
+        
         File archivo = new File("./huffman.txt");//.H
+        
         out = new FileOutputStream(archivo);
         buf = codificarHuffman(texto);
+        
         out.write(buf);
         out.close(); 
     }
@@ -406,7 +411,6 @@ public class Nodo implements Comparable<Nodo>{
      * @param path 
      */
     public static void escribirArchivo(String texto,String path){
-        System.out.println(texto);
         File archivo = null;
         FileReader fr = null; 
         try {

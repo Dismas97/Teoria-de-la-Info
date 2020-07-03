@@ -9,6 +9,7 @@ import java.io.FileWriter;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Random;
 import javax.swing.JOptionPane;
 
 /**
@@ -410,86 +411,35 @@ public class PanelHamming extends javax.swing.JFrame {
     }
     
     public void romperArchivo(String pathAleer, int bitsBloque,String ext){
-        boolean primero=true;
-        File archivo = null;
-        FileReader fr = null;
-        BufferedReader br = null;
         try {
-            archivo = new File("./"+pathAleer);                                   // Apertura del fichero
-            fr = new FileReader(archivo);                                       // creacion de BufferedReader para poder hacer el metodo readLine()).
-            br = new BufferedReader(fr);                                        // Lectura del fichero
-            String sinExtencion=pathAleer.substring(0, pathAleer.length()-4);//Saco la extencion
-            File archivo2 = new File("./"+sinExtencion+ext);//.H
-            BufferedWriter bw;
-            if(archivo2.exists()){
-                bw = new BufferedWriter(new FileWriter(archivo2));
-            }
-            else{
-                archivo2.createNewFile();
-                bw = new BufferedWriter(new FileWriter(archivo2));
-            }
-            String linea;
-            String aEscribirBytes;
-            String aux;
-            String auxColor;
-            String textoIzq="";
-            String textoDer="";
-            String auxRoto;
-            String textoDerAux = "";
-            String htmlAux="";
+            byte[] bytes  = Files.readAllBytes(Paths.get("./"+pathAleer));
+            String sinExtencion = archivoElegido.substring(0, archivoElegido.length()-4);//Saco la extencion
+            File archivo2 = new File("./"+sinExtencion+ext);//archivo roto
             
-            boolean [] arr;
-            int hasta = bitsBloque;
-            int posRota;
-            while ((linea = br.readLine()) != null) {
-                aux="";
-                htmlAux = linea.replace("<", "&lt;");
-                htmlAux = htmlAux.replace(">", "&gt;");
-                textoIzq += htmlAux +"<br>";
-                textoDerAux = "";
-                
-                while(hasta<=linea.length()){//Si bloque <  final del String
-                    aEscribirBytes = linea.substring(0, hasta);
-                    linea = linea.substring(hasta);
-                    arr= Hamming.toArray(aEscribirBytes);
-                    posRota = Hamming.romper((float) 0.5, arr);
-                    auxRoto = Hamming.toString(arr);
-                    
-                    if(posRota>=0){
-                        auxColor = auxRoto.substring(0, posRota)+"<font color=\"red\"><b>"+auxRoto.charAt(posRota)+"</b></font>"+auxRoto.substring(posRota+1);
-                        textoDerAux += auxColor;
-                    }
-                    else{
-                        textoDerAux += auxRoto;
-                    }
-                    
-                    aux += auxRoto;
+            boolean [] bits = Hamming.getIntervaloBits(bytes, 0, bytes.length*8);
+            String datos = Hamming.toString(bits);
+            int i=0;
+            Random random = new Random();
+            float prob = 0.2f;//20% de prob de romper el byte i
+            double romper = Math.random();
+            int posRomper;
+            while(i<bits.length){
+                romper = Math.random();
+                if(romper<=prob){
+                    posRomper = random.nextInt(bitsBloque-1); //retorna un int entre 0 y bloque-1
+                    bits[i+posRomper] = !bits[i+posRomper];
                 }
-                
-                textoDer += textoDerAux +"<br>";
-                if(primero){
-                    primero=false;
-                    bw.write(aux);
-                }else{
-                    bw.write('\n'+aux);
-                }                
+                i+=bitsBloque;
             }
-            bw.close();
-            jComboArchivosADecodificar.addItem(archivo2.getPath().substring(2));//Añado archivo a decodificar al combo box
-            mostrarArchivos(archivo.getPath(), archivo2.getPath(), textoIzq, textoDer);
+            String rotos = Hamming.toString(bits);
+            OutputStream out = new FileOutputStream(archivo2);
+            
+            out.write(Hamming.toBytes(bits));
+            out.close(); 
+            jComboArchivosADecodificar.addItem(archivo2.getPath().substring(2));//Añado archivo a decodificar
+            mostrarArchivos(Paths.get(archivoElegido).toString(), archivo2.getPath(), datos, rotos); 
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            // En el finally cerramos el fichero, para asegurarnos
-            // que se cierra tanto si todo va bien como si salta 
-            // una excepcion.
-            try {
-                if (null != fr) {
-                    fr.close();
-                }
-            } catch (Exception e2) {
-                e2.printStackTrace();
-            }
         }
     }
     
@@ -501,14 +451,11 @@ public class PanelHamming extends javax.swing.JFrame {
         String aImprimir;
         try {
             String contenido = Files.readString(Paths.get(archivoElegido));
-            System.out.println("Ya lei a string");
             String sinExtencion = archivoElegido.substring(0, archivoElegido.length()-4);//Saco la extencion
             File archivo2 = new File("./"+sinExtencion+extArchivo);//.HAx
             
             byte[] bytes  = Files.readAllBytes(Paths.get("./"+archivoElegido));
-            System.out.println("Ya lei a bytes");
             aImprimir = arrBytesToHammingString(bytes, cantBits);
-            System.out.println("Ya hamminifique");
             OutputStream out = new FileOutputStream(archivo2);
             
             out.write(Hamming.toBytes(aGuardarHamming));
